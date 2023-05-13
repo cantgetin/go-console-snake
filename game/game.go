@@ -2,6 +2,7 @@ package game
 
 import (
 	"console-snake/ui"
+	"strconv"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -28,9 +29,9 @@ const (
 )
 
 type Game struct {
-	playfield      *[10][10]int
+	playfield      *[20][30]int
 	snakeLength    int
-	snakePosition  [][2]int
+	snakePosition  Stack
 	userInput      UserInput
 	fruitPosition  []int
 	snakeDirection SnakeDirection
@@ -42,11 +43,17 @@ func Start(menu func()) {
 	alive := true
 
 	game := Game{
-		playfield:     new([10][10]int),
-		snakeLength:   5,
-		snakePosition: [][2]int{{2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}},
-		fruitPosition: []int{5, 6},
-		userInput:     NoInput}
+		playfield:      new([20][30]int),
+		snakeLength:    5,
+		snakePosition:  Stack{},
+		fruitPosition:  []int{5, 6},
+		userInput:      NoInput,
+		snakeDirection: RightDirection}
+
+	snakeStartPos := [][]int{{2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}}
+	for i := range snakeStartPos {
+		game.snakePosition.Push([]int{snakeStartPos[i][0], snakeStartPos[i][1]})
+	}
 
 	eventChan := make(chan termbox.Event)
 	go func() {
@@ -56,7 +63,7 @@ func Start(menu func()) {
 		}
 	}()
 
-	tickDuration := 500 * time.Millisecond
+	tickDuration := 250 * time.Millisecond
 	tickTimer := time.NewTimer(tickDuration)
 
 	for alive {
@@ -65,38 +72,56 @@ func Start(menu func()) {
 		// draw the current state of 2-dimensional array with colors
 		ui.PrintPlayfield(game.playfield)
 
+		var str string
+		for i := range game.snakePosition.items {
+			str += strconv.Itoa(game.snakePosition.items[i][0]) + " " + strconv.Itoa(game.snakePosition.items[i][1]) + " "
+		}
+
+		ui.PrintDebugInfo(str)
+
 		// wait for a short period of time and reset the timer for the next tick
 		<-tickTimer.C
 		tickTimer.Reset(tickDuration)
 
-		//ui.PrintDebugInfo("y:" + strconv.Itoa(game.blockPosition[0]) + " x: " + strconv.Itoa(game.blockPosition[1]))
 		alive = handleUserInput(&game, eventChan)
 	}
 	menu()
 }
 
 func gameTick(game *Game) {
-	// move snake 1 unit to the direction it's facing
-	// add block next to the head of snake
-	for i := range game.snakePosition {
-		pos := game.snakePosition[i]
-		game.playfield[pos[0]][pos[1]] = 1
-	}
+	// move head 1 block to the direction it's facing
+	head := game.snakePosition.items[len(game.snakePosition.items)-1]
 
-	blockToAppend := game.snakePosition[len(game.snakePosition)-1]
+	newHead := []int{head[0], head[1]}
 
 	switch game.snakeDirection {
 	case LeftDirection:
-		blockToAppend[0] -= 1
+		newHead[1] -= 1
 	case RightDirection:
-		blockToAppend[0] += 1
+		newHead[1] += 1
 	case DownDirection:
-		blockToAppend[1] -= 1
+		newHead[0] += 1
 	case UpDirection:
-		blockToAppend[0] += 1
+		newHead[0] -= 1
 	}
 
-	game.snakePosition = append(game.snakePosition, blockToAppend)
+	// snake previous blocks go to the next block's place
+
+	game.snakePosition.Push(newHead)
+	game.snakePosition.Pop()
+
+	for y := 0; y < len(game.playfield); y++ {
+		for x := 0; x < len(game.playfield[y]); x++ {
+			if game.playfield[y][x] == 1 {
+				game.playfield[y][x] = 0
+			}
+		}
+	}
+
+	for i := range game.snakePosition.items {
+		pos := game.snakePosition.items[i]
+		game.playfield[pos[0]][pos[1]] = 1
+	}
 }
 
 func handleUserInput(game *Game, eventChan chan termbox.Event) bool {

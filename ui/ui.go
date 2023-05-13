@@ -41,7 +41,7 @@ func PrintMenu(menuItems []string, selectedItem int) {
 	termbox.Flush()
 }
 
-func PrintPlayfield(playfield *[10][10]int) {
+func PrintPlayfield(playfield *[20][30]int) {
 	for i := 0; i < len(playfield); i++ {
 		for j := 0; j < len(playfield[i]); j++ {
 			x, y := j*2, i
