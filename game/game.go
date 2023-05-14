@@ -2,6 +2,7 @@ package game
 
 import (
 	"console-snake/ui"
+	"strconv"
 	"time"
 
 	"math/rand"
@@ -37,12 +38,11 @@ type Game struct {
 	userInput      UserInput
 	fruitPosition  []int
 	snakeDirection SnakeDirection
+	alive          bool
 }
 
 func Start(menu func()) {
 	ui.ClearScreen()
-
-	alive := true
 
 	game := Game{
 		playfield:      new([20][30]int),
@@ -50,7 +50,8 @@ func Start(menu func()) {
 		snakePosition:  Stack{},
 		fruitPosition:  []int{5, 6},
 		userInput:      NoInput,
-		snakeDirection: RightDirection}
+		snakeDirection: RightDirection,
+		alive:          true}
 
 	snakeStartPos := [][]int{{2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}}
 	for i := range snakeStartPos {
@@ -68,7 +69,7 @@ func Start(menu func()) {
 	tickDuration := 250 * time.Millisecond
 	tickTimer := time.NewTimer(tickDuration)
 
-	for alive {
+	for game.alive {
 		// game logic
 		gameTick(&game)
 		// draw the current state of 2-dimensional array with colors
@@ -78,19 +79,22 @@ func Start(menu func()) {
 		// for i := range game.snakePosition.items {
 		// 	str += strconv.Itoa(game.snakePosition.items[i][0]) + " " + strconv.Itoa(game.snakePosition.items[i][1]) + " "
 		// }
-		//ui.PrintDebugInfo(str)
+		ui.PrintDebugInfo(strconv.FormatBool(game.alive))
 
 		// wait for a short period of time and reset the timer for the next tick
 		<-tickTimer.C
 		tickTimer.Reset(tickDuration)
 
-		alive = handleUserInput(&game, eventChan)
+		if game.alive {
+			handleUserInput(&game, eventChan)
+		}
 	}
 	menu()
 }
 
 func gameTick(game *Game) {
 	// move head 1 block to the direction it's facing
+
 	head := game.snakePosition.items[len(game.snakePosition.items)-1]
 
 	newHead := []int{head[0], head[1]}
@@ -106,8 +110,10 @@ func gameTick(game *Game) {
 		newHead[0] -= 1
 	}
 
-	// if newHead is on fruit position then we eat the fruit and respawn it
+	// check newHead for collision
+	checkCollision(game, newHead)
 
+	// if newHead is on fruit position then we eat the fruit and respawn it
 	if newHead[0] == game.fruitPosition[0] && newHead[1] == game.fruitPosition[1] {
 		game.snakePosition.Push(newHead)
 		respawnFruit(game)
@@ -140,6 +146,34 @@ func gameTick(game *Game) {
 	game.playfield[pos[0]][pos[1]] = 2
 }
 
+func checkCollision(game *Game, newHead []int) {
+	// check if we collide with border, if so then get our head to the opposite side (teleport)
+	if newHead[0] > 19 {
+		newHead[0] = 0
+	}
+	if newHead[0] < 0 {
+		newHead[0] = 19
+	}
+	if newHead[1] > 29 {
+		newHead[1] = 0
+	}
+	if newHead[1] < 0 {
+		newHead[1] = 29
+	}
+	// if snake collides with its body then it's game over
+	for i := range game.snakePosition.items {
+		if newHead[0] == game.snakePosition.items[i][0] && newHead[1] == game.snakePosition.items[i][1] {
+			gameOver(game)
+			break
+		}
+	}
+}
+
+func gameOver(game *Game) {
+	ui.PrintDebugInfo("game over")
+	game.alive = false
+}
+
 func respawnFruit(game *Game) {
 
 	newFruitPos := []int{rand.Intn(19), rand.Intn(29)}
@@ -154,7 +188,7 @@ func respawnFruit(game *Game) {
 	game.fruitPosition = newFruitPos
 }
 
-func handleUserInput(game *Game, eventChan chan termbox.Event) bool {
+func handleUserInput(game *Game, eventChan chan termbox.Event) {
 	// check for user input
 	select {
 	case event := <-eventChan:
@@ -177,7 +211,7 @@ func handleUserInput(game *Game, eventChan chan termbox.Event) bool {
 				game.userInput = UpInput
 				game.snakeDirection = UpDirection
 			case termbox.KeyEsc:
-				return false
+				game.alive = false
 			default:
 				game.userInput = NoInput
 			}
@@ -185,5 +219,4 @@ func handleUserInput(game *Game, eventChan chan termbox.Event) bool {
 	default:
 		// no event waiting, continue the game
 	}
-	return true
 }
