@@ -2,8 +2,9 @@ package game
 
 import (
 	"console-snake/ui"
-	"strconv"
 	"time"
+
+	"math/rand"
 
 	"github.com/nsf/termbox-go"
 )
@@ -11,6 +12,7 @@ import (
 type State int
 type UserInput int
 type SnakeDirection int
+type GameState int
 
 // User input enum
 const (
@@ -72,12 +74,11 @@ func Start(menu func()) {
 		// draw the current state of 2-dimensional array with colors
 		ui.PrintPlayfield(game.playfield)
 
-		var str string
-		for i := range game.snakePosition.items {
-			str += strconv.Itoa(game.snakePosition.items[i][0]) + " " + strconv.Itoa(game.snakePosition.items[i][1]) + " "
-		}
-
-		ui.PrintDebugInfo(str)
+		// var str string
+		// for i := range game.snakePosition.items {
+		// 	str += strconv.Itoa(game.snakePosition.items[i][0]) + " " + strconv.Itoa(game.snakePosition.items[i][1]) + " "
+		// }
+		//ui.PrintDebugInfo(str)
 
 		// wait for a short period of time and reset the timer for the next tick
 		<-tickTimer.C
@@ -105,10 +106,18 @@ func gameTick(game *Game) {
 		newHead[0] -= 1
 	}
 
-	// snake previous blocks go to the next block's place
+	// if newHead is on fruit position then we eat the fruit and respawn it
 
-	game.snakePosition.Push(newHead)
-	game.snakePosition.Pop()
+	if newHead[0] == game.fruitPosition[0] && newHead[1] == game.fruitPosition[1] {
+		game.snakePosition.Push(newHead)
+		respawnFruit(game)
+	} else {
+		// remove snake last block (tail), add new block (newHead)
+		game.snakePosition.Push(newHead)
+		game.snakePosition.Pop()
+	}
+
+	// clear gamefield
 
 	for y := 0; y < len(game.playfield); y++ {
 		for x := 0; x < len(game.playfield[y]); x++ {
@@ -118,10 +127,31 @@ func gameTick(game *Game) {
 		}
 	}
 
+	// draw snake
+
 	for i := range game.snakePosition.items {
 		pos := game.snakePosition.items[i]
 		game.playfield[pos[0]][pos[1]] = 1
 	}
+
+	// draw fruit
+
+	pos := game.fruitPosition
+	game.playfield[pos[0]][pos[1]] = 2
+}
+
+func respawnFruit(game *Game) {
+
+	newFruitPos := []int{rand.Intn(19), rand.Intn(29)}
+
+	for i := range game.snakePosition.items {
+		if newFruitPos[0] == game.snakePosition.items[i][0] && newFruitPos[1] == game.snakePosition.items[i][1] {
+			respawnFruit(game)
+			return
+		}
+	}
+
+	game.fruitPosition = newFruitPos
 }
 
 func handleUserInput(game *Game, eventChan chan termbox.Event) bool {
