@@ -54,7 +54,7 @@ func menu() {
 
 func about() {
 	ui.ClearScreen()
-	ui.PrintInfoOnScreen("Golang tetris by cantgetin, 2023")
+	ui.PrintInfoOnScreen("Golang snake by cantgetin, 2023")
 	for {
 		event := termbox.PollEvent()
 

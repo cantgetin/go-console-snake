@@ -2,7 +2,6 @@ package game
 
 import (
 	"console-snake/ui"
-	"strconv"
 	"time"
 
 	"math/rand"
@@ -43,6 +42,8 @@ type Game struct {
 
 func Start(menu func()) {
 	ui.ClearScreen()
+	printControls()
+	ui.PrintDebugInfo("snake game")
 
 	game := Game{
 		playfield:      new([20][30]int),
@@ -72,22 +73,15 @@ func Start(menu func()) {
 	for game.alive {
 		// game logic
 		gameTick(&game)
+
 		// draw the current state of 2-dimensional array with colors
 		ui.PrintPlayfield(game.playfield)
-
-		// var str string
-		// for i := range game.snakePosition.items {
-		// 	str += strconv.Itoa(game.snakePosition.items[i][0]) + " " + strconv.Itoa(game.snakePosition.items[i][1]) + " "
-		// }
-		ui.PrintDebugInfo(strconv.FormatBool(game.alive))
 
 		// wait for a short period of time and reset the timer for the next tick
 		<-tickTimer.C
 		tickTimer.Reset(tickDuration)
 
-		if game.alive {
-			handleUserInput(&game, eventChan)
-		}
+		handleUserInput(&game, eventChan)
 	}
 	menu()
 }
@@ -172,6 +166,15 @@ func checkCollision(game *Game, newHead []int) {
 func gameOver(game *Game) {
 	ui.PrintDebugInfo("game over")
 	game.alive = false
+}
+
+func printControls() {
+	ui.PrintInfoOnScreenAtXY("Controls: ", 61, 1)
+	ui.PrintInfoOnScreenAtXY("Arrow left: move left", 61, 3)
+	ui.PrintInfoOnScreenAtXY("Arrow right: move right", 61, 4)
+	ui.PrintInfoOnScreenAtXY("Arrow down: move down", 61, 5)
+	ui.PrintInfoOnScreenAtXY("Arrow up: move up", 61, 6)
+	ui.PrintInfoOnScreenAtXY("Esc: exit to main menu", 61, 7)
 }
 
 func respawnFruit(game *Game) {
